@@ -1,0 +1,9 @@
+[33mChecking API availability at http://localhost:80...[0m
+
+[33mAttempt 1/5 - API not yet available, retrying...[0m
+[33mAttempt 2/5 - API not yet available, retrying...[0m
+[33mAttempt 3/5 - API not yet available, retrying...[0m
+[33mAttempt 4/5 - API not yet available, retrying...[0m
+[31m[1mError: Could not connect to API at http://localhost:80[0m
+[33mMake sure the API is running. Start with: npm start[0m
+

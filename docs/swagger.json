@@ -1,0 +1,394 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Cabinet Control API",
+    "version": "1.0.0",
+    "description": "RESTful API service for controlling cabinets via serial port communication",
+    "contact": {
+      "name": "API Support"
+    },
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:80",
+      "description": "Local development server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Cabinet",
+      "description": "Cabinet control operations"
+    },
+    {
+      "name": "Health",
+      "description": "Service health check"
+    }
+  ],
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check endpoint",
+        "description": "Returns the health status of the API service",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                },
+                "example": {
+                  "status": "healthy",
+                  "timestamp": "2025-11-13T15:30:00.000Z",
+                  "uptime": 3600,
+                  "service": "Cabinet Control API",
+                  "version": "1.0.0"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cabinet/status": {
+      "get": {
+        "tags": ["Cabinet"],
+        "summary": "Get all cabinet statuses",
+        "description": "Returns the status of all cabinets including open/close state and timestamps",
+        "operationId": "getCabinetStatus",
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved cabinet statuses",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                },
+                "example": {
+                  "status": "success",
+                  "data": {
+                    "cabinets": [
+                      {
+                        "id": 1,
+                        "status": "opened",
+                        "timestamp": "2025-11-13T15:25:00.000Z"
+                      },
+                      {
+                        "id": 2,
+                        "status": "opened",
+                        "timestamp": "2025-11-13T15:25:01.000Z"
+                      }
+                    ],
+                    "totalCabinets": 2,
+                    "openedCount": 2
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cabinet/open": {
+      "post": {
+        "tags": ["Cabinet"],
+        "summary": "Open selected cabinets",
+        "description": "Opens specified cabinets by sending serial commands",
+        "operationId": "openCabinets",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenCabinetsRequest"
+              },
+              "examples": {
+                "single": {
+                  "summary": "Open single cabinet",
+                  "value": {
+                    "cabinetIds": [1]
+                  }
+                },
+                "multiple": {
+                  "summary": "Open multiple cabinets",
+                  "value": {
+                    "cabinetIds": [1, 2, 3, 5, 8]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cabinets opened successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenCabinetsResponse"
+                },
+                "example": {
+                  "status": "success",
+                  "message": "Cabinets opened successfully",
+                  "opened": [1, 2, 3],
+                  "count": 3,
+                  "timestamp": "2025-11-13T15:30:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "examples": {
+                  "missingField": {
+                    "summary": "Missing cabinetIds field",
+                    "value": {
+                      "status": "error",
+                      "message": "cabinetIds is required and must be an array"
+                    }
+                  },
+                  "emptyArray": {
+                    "summary": "Empty array",
+                    "value": {
+                      "status": "error",
+                      "message": "cabinetIds array cannot be empty"
+                    }
+                  },
+                  "invalidType": {
+                    "summary": "Invalid data type",
+                    "value": {
+                      "status": "error",
+                      "message": "All cabinetIds must be numbers"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cabinet/reset": {
+      "post": {
+        "tags": ["Cabinet"],
+        "summary": "Reset cabinet status tracking",
+        "description": "Clears all cabinet status history",
+        "operationId": "resetCabinets",
+        "responses": {
+          "200": {
+            "description": "Cabinet status reset successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Cabinet status reset successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "required": ["status", "timestamp"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["healthy"],
+            "description": "Health status of the service"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Current server timestamp"
+          },
+          "uptime": {
+            "type": "number",
+            "description": "Server uptime in seconds"
+          },
+          "service": {
+            "type": "string",
+            "description": "Service name"
+          },
+          "version": {
+            "type": "string",
+            "description": "API version"
+          }
+        }
+      },
+      "StatusResponse": {
+        "type": "object",
+        "required": ["status", "data"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["success"],
+            "description": "Response status"
+          },
+          "data": {
+            "type": "object",
+            "required": ["cabinets", "totalCabinets", "openedCount"],
+            "properties": {
+              "cabinets": {
+                "type": "array",
+                "description": "List of cabinets with their statuses",
+                "items": {
+                  "$ref": "#/components/schemas/CabinetStatus"
+                }
+              },
+              "totalCabinets": {
+                "type": "integer",
+                "description": "Total number of cabinets tracked"
+              },
+              "openedCount": {
+                "type": "integer",
+                "description": "Number of cabinets that have been opened"
+              }
+            }
+          }
+        }
+      },
+      "CabinetStatus": {
+        "type": "object",
+        "required": ["id", "status", "timestamp"],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Cabinet identifier",
+            "example": 1
+          },
+          "status": {
+            "type": "string",
+            "enum": ["opened", "closed"],
+            "description": "Current status of the cabinet"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the cabinet was last opened"
+          }
+        }
+      },
+      "OpenCabinetsRequest": {
+        "type": "object",
+        "required": ["cabinetIds"],
+        "properties": {
+          "cabinetIds": {
+            "type": "array",
+            "description": "Array of cabinet IDs to open",
+            "minItems": 1,
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "example": [1, 2, 3]
+          }
+        }
+      },
+      "OpenCabinetsResponse": {
+        "type": "object",
+        "required": ["status", "message", "opened", "count"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["success"],
+            "description": "Response status"
+          },
+          "message": {
+            "type": "string",
+            "description": "Success message"
+          },
+          "opened": {
+            "type": "array",
+            "description": "Array of cabinet IDs that were opened",
+            "items": {
+              "type": "integer"
+            }
+          },
+          "count": {
+            "type": "integer",
+            "description": "Number of cabinets opened"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Operation timestamp"
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["status", "message"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["error"],
+            "description": "Error status"
+          },
+          "message": {
+            "type": "string",
+            "description": "Error message"
+          },
+          "error": {
+            "type": "string",
+            "description": "Detailed error information"
+          }
+        }
+      }
+    }
+  }
+}

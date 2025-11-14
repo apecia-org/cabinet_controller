@@ -1,0 +1,499 @@
+================================================================================
+CABINET CONTROL REST API - ARCHITECTURE DIAGRAM
+================================================================================
+
+1. REQUEST FLOW
+================================================================================
+
+HTTP Client (curl, Postman, Browser, etc.)
+         |
+         | HTTP Request
+         | (GET/POST /api/v1/...)
+         |
+         v
+    [Express Server] (src/server.js)
+         |
+         | Middleware
+         | - JSON parsing
+         | - Request logging
+         | - Error handling
+         |
+         v
+    [Routes] (src/routes/cabinetRoutes.js)
+         |
+         | Route matching
+         | Maps /api/v1/... to controller
+         |
+         v
+    [Controllers] (src/controllers/cabinetController.js)
+         |
+         | Handler functions
+         | - Input validation
+         | - Response formatting
+         |
+         v
+    [Services] (src/services/cabinetService.js)
+         |
+         | Business logic
+         | - Serial port communication
+         | - Status tracking
+         |
+         v
+    [Utilities] (src/utils/serialPort.js)
+         |
+         | Protocol implementation
+         | - CRC8 calculation
+         | - Frame building
+         |
+         v
+    [Serial Port] (COM3, 9600 baud)
+         |
+         | Binary protocol frames
+         | Frame: [AA 55] [Length] [Addr] [Instr] [Data] [CRC8]
+         |
+         v
+    Cabinet Hardware
+
+
+2. MODULE DEPENDENCIES
+================================================================================
+
+src/server.js
+    |---> express
+    |---> dotenv
+    |---> src/services/cabinetService.js
+    |     |---> serialport
+    |     |---> src/utils/serialPort.js
+    |---> src/routes/cabinetRoutes.js
+          |---> express
+          |---> src/controllers/cabinetController.js
+                |---> src/services/cabinetService.js
+
+
+3. API ENDPOINT MAPPING
+================================================================================
+
+GET /api/v1/health
+    |
+    v
+[cabinetController.getHealth()]
+    |
+    v
+{status: "healthy", timestamp, version}
+
+
+GET /api/v1/cabinet/status
+    |
+    v
+[cabinetController.getCabinetStatus()]
+    |
+    v
+[cabinetService.getCabinetStatus()]
+    |
+    v
+{connected, portPath, baudRate, cabinets: [...]}
+
+
+POST /api/v1/cabinet/open (body: {cabinetIds: [...]})
+    |
+    v
+[cabinetController.openCabinets()]
+    |
+    +--> Validate input (array, integers, 0-255)
+    |
+    v
+[cabinetService.openCabinets()]
+    |
+    +--> For each cabinet ID:
+    |    |
+    |    +--> [serialPort.buildSerialFrame(id)]
+    |    |
+    |    +--> [cabinetService.sendFrame()]
+    |    |    |
+    |    |    v
+    |    |    [serialport.write()]
+    |    |    |
+    |    |    v
+    |    |    Serial Port -> Cabinet
+    |    |
+    |    +--> Update status tracking
+    |    |
+    |    +--> 100ms delay
+    |
+    v
+{opened: [...], failed: [...], counts}
+
+
+POST /api/v1/cabinet/reset
+    |
+    v
+[cabinetController.resetStatus()]
+    |
+    v
+[cabinetService.resetStatus()]
+    |
+    v
+{status: "success", message}
+
+
+4. SERIAL PROTOCOL FRAME STRUCTURE
+================================================================================
+
+Frame Format:
++--------+--------+--------+--------+---------+--------+--------+
+| Header1| Header2| Length | Addr   | Instr   | Data   | CRC8   |
++--------+--------+--------+--------+---------+--------+--------+
+|  0xAA  |  0x55  | 0x02   | 0x00   |  0x51   | [ID]   | [CRC]  |
++--------+--------+--------+--------+---------+--------+--------+
+|        Header (2 bytes)           |     Frame Data (variable)    |
++----------------------------------+------------------------------+
+
+Example: Open Cabinet ID 1
+AA 55 03 00 51 01 A5
+|  |  || ||  || | |_CRC8 checksum
+|  |  || ||  || |___Cabinet ID (1)
+|  |  || ||  |____Instruction (0x51 = Open Cabinet)
+|  |  || ||_______Board Address (0x00)
+|  |  || |________Data Length (3 = Instr + Addr + Data)
+|  |  |___________Header2 (0x55)
+|  |____________Header1 (0xAA)
+
+
+5. DATA FLOW - OPEN CABINETS REQUEST
+================================================================================
+
+HTTP Request
+    {
+      "cabinetIds": [1, 2, 3]
+    }
+         |
+         v
+Input Validation
+    - Check type: Array? YES
+    - Check empty? NO (3 items)
+    - Check each item: Integer 0-255? YES
+         |
+         v
+Serial Frame Building (for each ID)
+
+    ID=1: buildSerialFrame([1])
+          |
+          +--> Input: [1]
+          |
+          +--> CRC8 calculation on [AA 55 03 00 51 1]
+          |    (polynomial 0x8C, LSB-first)
+          |
+          +--> Result: CRC = A5
+          |
+          +--> Full frame: [AA 55 03 00 51 01 A5]
+          |
+          v
+    Write to Serial Port (COM3)
+    Serial Data -> Cabinet Hardware
+         |
+         v
+    Update Status: {id: 1, status: "opened", timestamp}
+    Delay 100ms
+         |
+    [Repeat for ID 2 and ID 3]
+         |
+         v
+HTTP Response
+    {
+      "status": "success",
+      "data": {
+        "opened": [
+          {id: 1, status: "opened", timestamp},
+          {id: 2, status: "opened", timestamp},
+          {id: 3, status: "opened", timestamp}
+        ],
+        "failed": [],
+        "total": 3,
+        "successCount": 3,
+        "failureCount": 0
+      },
+      "timestamp": "ISO-8601"
+    }
+
+
+6. ERROR HANDLING FLOW
+================================================================================
+
+HTTP Request
+         |
+         v
+Express Middleware
+    |
+    +--> JSON Parse Error?
+    |    |
+    |    v
+    |    Error Handler (400 + error message)
+    |
+    +--> No errors, continue
+         |
+         v
+Route Matching
+    |
+    +--> No matching route?
+    |    |
+    |    v
+    |    404 Handler (404 + "not found")
+    |
+    +--> Route found, continue
+         |
+         v
+Controller
+    |
+    +--> Validation error?
+    |    |
+    |    v
+    |    Return 400 + detailed error message
+    |
+    +--> No validation errors, continue
+         |
+         v
+Service Layer
+    |
+    +--> Serial port error?
+    |    |
+    |    v
+    |    Return 500 + error message
+    |
+    +--> No errors, return 200 + response data
+
+
+7. CONFIGURATION FLOW
+================================================================================
+
+.env File (User Configuration)
+    PORT=80
+    SERIAL_PORT=/dev/ttyUSB0
+    BAUD_RATE=9600
+    NODE_ENV=production
+         |
+         v
+dotenv.config() [src/server.js]
+         |
+         v
+process.env Variables
+         |
+         +--> PORT -> Express app.listen()
+         |
+         +--> SERIAL_PORT -> SerialPort(path: ...)
+         |
+         +--> BAUD_RATE -> SerialPort(baudRate: ...)
+         |
+         v
+Running Server
+    Listening on PORT
+    Connected to SERIAL_PORT at BAUD_RATE
+
+
+8. STATUS TRACKING
+================================================================================
+
+Initial State: cabinetStatus = {}
+
+POST /api/v1/cabinet/open {cabinetIds: [1, 2, 3]}
+    |
+    v
+Open Cabinet 1
+    |
+    +--> Send frame to serial port
+    |
+    +--> Update: cabinetStatus[1] = {
+         id: 1,
+         status: "opened",
+         timestamp: "2024-11-13T10:30:45.123Z"
+         }
+    |
+    v
+Open Cabinet 2
+    |
+    +--> Send frame to serial port
+    |
+    +--> Update: cabinetStatus[2] = {
+         id: 2,
+         status: "opened",
+         timestamp: "2024-11-13T10:30:45.200Z"
+         }
+    |
+    v
+Open Cabinet 3
+    |
+    +--> Send frame to serial port
+    |
+    +--> Update: cabinetStatus[3] = {
+         id: 3,
+         status: "opened",
+         timestamp: "2024-11-13T10:30:45.300Z"
+         }
+    |
+    v
+GET /api/v1/cabinet/status
+    |
+    +--> Returns cabinetStatus object
+    |
+    v
+Response:
+    {
+      "status": "success",
+      "data": {
+        "connected": true,
+        "portPath": "COM3",
+        "baudRate": 9600,
+        "cabinets": [
+          {id: 1, status: "opened", timestamp: "..."},
+          {id: 2, status: "opened", timestamp: "..."},
+          {id: 3, status: "opened", timestamp: "..."}
+        ]
+      }
+    }
+
+
+9. SINGLETON PATTERN (cabinetService)
+================================================================================
+
+Module Export:
+    export default new CabinetService()
+         |
+         v
+Single Instance
+    cabinetService
+         |
+         +--> port (SerialPort instance)
+         +--> isConnected (boolean)
+         +--> cabinetStatus (object)
+         +--> responseBuffer (Buffer)
+         |
+         v
+Used Throughout Application
+    - controllers import and use same instance
+    - server.js initializes same instance
+    - State persists across requests
+
+
+10. DEPLOYMENT ARCHITECTURE
+================================================================================
+
+Development:
+    npm run dev
+         |
+    [Express Server] <---> Serial Port (COM3)
+         |
+         | localhost:3000
+         |
+    [Developer/Browser]
+
+
+Production:
+    [Load Balancer/Reverse Proxy]
+         |
+         | HTTP
+         |
+    [Express Server (Port 80)]
+         |
+         | Serial Port
+         |
+    [Cabinet Hardware]
+         |
+    [Monitoring/Logging]
+    [Health Checks]
+    [Alerts]
+
+
+11. LIFECYCLE DIAGRAM
+================================================================================
+
+Server Startup:
+    1. Load .env via dotenv.config()
+    2. Create Express app
+    3. Add middleware (JSON parsing, logging)
+    4. Mount routes
+    5. Initialize cabinetService
+    6. Connect to serial port
+         a. Success -> Log success
+         b. Failure -> Log error, continue (graceful fallback)
+    7. Listen on PORT
+    8. Server ready for requests
+
+Request Handling:
+    1. Receive HTTP request
+    2. Parse JSON body
+    3. Log request
+    4. Match route
+    5. Call controller
+    6. Validate input
+    7. Call service
+    8. Build/send serial frame
+    9. Collect response
+    10. Format JSON response
+    11. Send HTTP response
+
+Server Shutdown:
+    1. Receive SIGTERM/SIGINT signal
+    2. Set shutdown flag
+    3. Disconnect serial port
+    4. Exit process
+
+
+12. CRC8 CALCULATION
+================================================================================
+
+Input: Buffer [AA, 55, 03, 00, 51, 01]
+
+Algorithm:
+    1. Initialize: crc = 0x00
+    2. For each byte:
+         a. XOR byte with crc
+         b. For 8 bits:
+            - If LSB = 1: shift right, XOR with 0x8C
+            - Else: shift right only
+         c. Keep 8-bit
+    3. Return final crc
+
+Example for cabinet ID 1:
+    crc = 0x00
+    Process 0xAA: ... final = 0xAA
+    Process 0x55: ... final = 0xFF
+    Process 0x03: ... final = 0xFC
+    Process 0x00: ... final = 0xFC
+    Process 0x51: ... final = 0xAD
+    Process 0x01: ... final = 0xA5 (CRC result)
+
+Result: A5
+
+
+================================================================================
+Key Design Principles
+================================================================================
+
+1. SEPARATION OF CONCERNS
+   - Controllers: HTTP handling
+   - Services: Business logic
+   - Routes: Endpoint definition
+   - Utils: Reusable functions
+
+2. ERROR HANDLING
+   - Try-catch blocks
+   - Proper HTTP status codes
+   - Detailed error messages
+   - Graceful fallbacks
+
+3. CONFIGURATION
+   - Environment variables
+   - Reasonable defaults
+   - No hardcoded secrets
+
+4. MODULARITY
+   - Each module has single responsibility
+   - Minimal coupling
+   - Maximum cohesion
+
+5. SCALABILITY
+   - Stateless handlers
+   - Efficient serial operations
+   - Configurable limits
+   - Ready for clustering
+
+================================================================================

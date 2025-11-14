@@ -1,0 +1,180 @@
+[33mChecking API availability at http://localhost:80...[0m
+
+[32mAPI is available![0m
+
+[1m[36mCabinet Control API - Manual Test Suite[0m
+[33mTesting API at: http://localhost:80[0m
+
+
+[1m[34m======================================================================[0m
+[1m[34mROOT ENDPOINT TESTS[0m
+[1m[34m======================================================================[0m
+
+[36m[1m► GET / - Get API Documentation[0m
+  [32m✓[0m Root endpoint returns 200
+    [33mStatus: 200[0m
+  [31m✗[0m Response contains service information
+    [33mService: undefined[0m
+  [31m✗[0m Response includes endpoints object
+    [33mEndpoints: [0m
+
+[1m[34m======================================================================[0m
+[1m[34mHEALTH CHECK ENDPOINT[0m
+[1m[34m======================================================================[0m
+
+[36m[1m► GET /api/v1/health - Health Check[0m
+  [32m✓[0m Health endpoint returns 200
+    [33mStatus: 200[0m
+  [31m✗[0m Health status is "healthy"
+    [33mStatus: undefined[0m
+  [31m✗[0m Service name is correct
+    [33mService: undefined[0m
+  [32m✓[0m Response includes valid timestamp
+    [33mTimestamp: 2025-11-14T01:02:14.668Z[0m
+
+[1m[34m======================================================================[0m
+[1m[34mCABINET STATUS ENDPOINT[0m
+[1m[34m======================================================================[0m
+
+[36m[1m► GET /api/v1/cabinet/status - Get Cabinet Status[0m
+  [31m✗[0m Status endpoint returns 200
+    [33mStatus: 404[0m
+  [31m✗[0m Response status is "success"
+    [33mStatus: undefined[0m
+  [31m✗[0m Response includes data object
+    [33mData fields: [0m
+  [31m✗[0m Cabinets field is an array
+    [33mCabinet count: 0[0m
+  [31m✗[0m Status includes connection state
+    [33mConnected: undefined[0m
+
+[1m[34m======================================================================[0m
+[1m[34mOPEN CABINETS ENDPOINT - VALID REQUESTS[0m
+[1m[34m======================================================================[0m
+
+[36m[1m► POST /api/v1/cabinet/open - Open Single Cabinet[0m
+  [31m✗[0m Open endpoint returns 200
+    [33mStatus: 404[0m
+  [31m✗[0m Response status is "success"
+    [33mStatus: undefined[0m
+  [31m✗[0m Successfully opened 1 cabinet
+    [33mSuccess count: undefined[0m
+  [31m✗[0m Opened array contains 1 item
+    [33mOpened: undefined[0m
+
+[36m[1m► POST /api/v1/cabinet/open - Open Multiple Cabinets[0m
+  [31m✗[0m Open endpoint returns 200
+    [33mStatus: 404[0m
+  [31m✗[0m Successfully opened 3 cabinets
+    [33mSuccess count: undefined[0m
+  [31m✗[0m Opened array contains 3 items
+    [33mItems: undefined[0m
+
+[36m[1m► POST /api/v1/cabinet/open - Boundary Values (0 and 255)[0m
+  [31m✗[0m Boundary value request returns 200
+    [33mStatus: 404[0m
+  [31m✗[0m Boundary values accepted
+    [33mSuccess count: undefined[0m
+
+[1m[34m======================================================================[0m
+[1m[34mOPEN CABINETS ENDPOINT - INVALID REQUESTS[0m
+[1m[34m======================================================================[0m
+
+[36m[1m► POST /api/v1/cabinet/open - Missing cabinetIds Field[0m
+  [31m✗[0m Returns 400 for missing field
+    [33mStatus: 404[0m
+  [31m✗[0m Response status is "error"
+    [33mError: undefined[0m
+
+[36m[1m► POST /api/v1/cabinet/open - Empty cabinetIds Array[0m
+  [31m✗[0m Returns 400 for empty array
+    [33mStatus: 404[0m
+  [31m✗[0m Error message mentions empty array
+    [33mMessage: undefined[0m
+
+[36m[1m► POST /api/v1/cabinet/open - Non-Array cabinetIds[0m
+  [31m✗[0m Returns 400 for non-array
+    [33mStatus: 404[0m
+  [31m✗[0m Error message indicates invalid format
+    [33mMessage: undefined[0m
+
+[36m[1m► POST /api/v1/cabinet/open - Negative Cabinet ID[0m
+  [31m✗[0m Returns 400 for negative ID
+    [33mStatus: 404[0m
+  [31m✗[0m Error message indicates invalid ID
+    [33mMessage: undefined[0m
+
+[36m[1m► POST /api/v1/cabinet/open - Cabinet ID > 255[0m
+  [31m✗[0m Returns 400 for ID > 255
+    [33mStatus: 404[0m
+  [31m✗[0m Error message indicates invalid ID
+    [33mMessage: undefined[0m
+
+[36m[1m► POST /api/v1/cabinet/open - Floating Point Cabinet ID[0m
+  [31m✗[0m Returns 400 for floating point
+    [33mStatus: 404[0m
+  [31m✗[0m Error message indicates invalid format
+    [33mMessage: undefined[0m
+
+[36m[1m► POST /api/v1/cabinet/open - String in Array[0m
+  [31m✗[0m Returns 400 for string in array
+    [33mStatus: 404[0m
+  [31m✗[0m Response status is "error"
+    [33mError: undefined[0m
+
+[1m[34m======================================================================[0m
+[1m[34mRESET STATUS ENDPOINT[0m
+[1m[34m======================================================================[0m
+
+[36m[1m► POST /api/v1/cabinet/reset - Reset Cabinet Status[0m
+  [31m✗[0m Reset endpoint returns 200
+    [33mStatus: 404[0m
+  [31m✗[0m Response status is "success"
+    [33mStatus: undefined[0m
+  [31m✗[0m Response message mentions reset
+    [33mMessage: undefined[0m
+  [31m✗[0m Cabinet status cleared after reset
+    [33mCabinet count: undefined[0m
+
+[1m[34m======================================================================[0m
+[1m[34mERROR HANDLING[0m
+[1m[34m======================================================================[0m
+
+[36m[1m► GET /api/v1/unknown-route - 404 Not Found[0m
+  [32m✓[0m Unknown route returns 404
+    [33mStatus: 404[0m
+  [31m✗[0m Response indicates error
+    [33mStatus: undefined[0m
+
+[36m[1m► PUT /api/v1/health - Wrong HTTP Method[0m
+  [32m✓[0m Wrong HTTP method returns 404
+    [33mStatus: 404[0m
+
+[36m[1m► GET /api/v1/cabinet/open - Wrong HTTP Method on POST Endpoint[0m
+  [32m✓[0m GET on POST endpoint returns 404
+    [33mStatus: 404[0m
+
+[1m[34m======================================================================[0m
+[1m[34mCONTENT TYPE VALIDATION[0m
+[1m[34m======================================================================[0m
+
+[36m[1m► Verify JSON Content-Type Headers[0m
+  [32m✓[0m GET /api/v1/health returns JSON
+    [33mContent-Type: application/json; charset=utf-8[0m
+  [32m✓[0m GET /api/v1/cabinet/status returns JSON
+    [33mContent-Type: application/json; charset=utf-8[0m
+  [32m✓[0m POST /api/v1/cabinet/reset returns JSON
+    [33mContent-Type: application/json; charset=utf-8[0m
+
+[1m[34m======================================================================[0m
+[1m[34mTEST SUMMARY[0m
+[1m[34m======================================================================[0m
+
+[1mTest Results:[0m
+  [32mPassed: 9[0m
+  [31mFailed: 37[0m
+  [33mTotal:  46[0m
+
+[1mPass Rate: 19.6%[0m
+
+[31m[1m37 test(s) failed![0m
