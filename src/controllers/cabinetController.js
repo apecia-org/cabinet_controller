@@ -30,10 +30,15 @@ export async function getHealth(req, res) {
 /**
  * Get all cabinet statuses
  * GET /api/v1/cabinet/status
+ * Query parameters:
+ *   - fresh: if true, requests fresh status from hardware
  */
 export async function getCabinetStatus(req, res) {
   try {
-    const status = cabinetService.getCabinetStatus();
+    // Check if fresh status is requested
+    const requestFresh = req.query.fresh === 'true';
+
+    const status = await cabinetService.getCabinetStatus(requestFresh);
 
     res.status(200).json({
       status: 'success',
