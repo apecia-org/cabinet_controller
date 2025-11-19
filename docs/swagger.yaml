@@ -36,8 +36,7 @@ paths:
               example:
                 status: healthy
                 timestamp: '2025-11-13T15:30:00.000Z'
-                uptime: 3600
-                service: Cabinet Control API
+                service: cabinet-api
                 version: 1.0.0
 
   /api/v1/cabinet/status:
@@ -47,6 +46,14 @@ paths:
       summary: Get all cabinet statuses
       description: Returns the status of all cabinets including open/close state and timestamps
       operationId: getCabinetStatus
+      parameters:
+        - name: fresh
+          in: query
+          description: If true, requests fresh status from hardware
+          required: false
+          schema:
+            type: boolean
+            default: false
       responses:
         '200':
           description: Successfully retrieved cabinet statuses
@@ -66,6 +73,7 @@ paths:
                       timestamp: '2025-11-13T15:25:01.000Z'
                   totalCabinets: 2
                   openedCount: 2
+                timestamp: '2025-11-13T15:30:00.000Z'
         '500':
           description: Internal server error
           content:
@@ -104,9 +112,13 @@ paths:
                 $ref: '#/components/schemas/OpenCabinetsResponse'
               example:
                 status: success
-                message: Cabinets opened successfully
-                opened: [1, 2, 3]
-                count: 3
+                message: Cabinet operation completed
+                data:
+                  opened: [1, 2, 3]
+                  failed: []
+                  total: 3
+                  successCount: 3
+                  failureCount: 0
                 timestamp: '2025-11-13T15:30:00.000Z'
         '400':
           description: Invalid request body
@@ -150,14 +162,11 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    example: success
-                  message:
-                    type: string
-                    example: Cabinet status reset successfully
+                $ref: '#/components/schemas/ResetResponse'
+              example:
+                status: success
+                message: Cabinet status tracking reset
+                timestamp: '2025-11-13T15:30:00.000Z'
         '500':
           description: Internal server error
           content:
@@ -172,6 +181,8 @@ components:
       required:
         - status
         - timestamp
+        - service
+        - version
       properties:
         status:
           type: string
@@ -181,21 +192,21 @@ components:
           type: string
           format: date-time
           description: Current server timestamp
-        uptime:
-          type: number
-          description: Server uptime in seconds
         service:
           type: string
           description: Service name
+          example: cabinet-api
         version:
           type: string
           description: API version
+          example: 1.0.0
 
     StatusResponse:
       type: object
       required:
         - status
         - data
+        - timestamp
       properties:
         status:
           type: string
@@ -219,6 +230,10 @@ components:
             openedCount:
               type: integer
               description: Number of cabinets that have been opened
+        timestamp:
+          type: string
+          format: date-time
+          description: Response timestamp
 
     CabinetStatus:
       type: object
@@ -260,8 +275,8 @@ components:
       required:
         - status
         - message
-        - opened
-        - count
+        - data
+        - timestamp
       properties:
         status:
           type: string
@@ -270,14 +285,53 @@ components:
         message:
           type: string
           description: Success message
-        opened:
-          type: array
-          description: Array of cabinet IDs that were opened
-          items:
-            type: integer
-        count:
-          type: integer
-          description: Number of cabinets opened
+        data:
+          type: object
+          required:
+            - opened
+            - failed
+            - total
+            - successCount
+            - failureCount
+          properties:
+            opened:
+              type: array
+              description: Array of cabinet IDs that were successfully opened
+              items:
+                type: integer
+            failed:
+              type: array
+              description: Array of cabinet IDs that failed to open
+              items:
+                type: integer
+            total:
+              type: integer
+              description: Total number of cabinets requested to open
+            successCount:
+              type: integer
+              description: Number of cabinets successfully opened
+            failureCount:
+              type: integer
+              description: Number of cabinets that failed to open
+        timestamp:
+          type: string
+          format: date-time
+          description: Operation timestamp
+
+    ResetResponse:
+      type: object
+      required:
+        - status
+        - message
+        - timestamp
+      properties:
+        status:
+          type: string
+          enum: [success]
+          description: Response status
+        message:
+          type: string
+          description: Success message
         timestamp:
           type: string
           format: date-time

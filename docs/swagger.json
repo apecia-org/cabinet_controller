@@ -75,12 +75,12 @@
                     "cabinets": [
                       {
                         "id": 1,
-                        "status": "opened",
+                        "status": "open",
                         "timestamp": "2025-11-13T15:25:00.000Z"
                       },
                       {
                         "id": 2,
-                        "status": "opened",
+                        "status": "close",
                         "timestamp": "2025-11-13T15:25:01.000Z"
                       }
                     ],
